@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { restoreReferencedMedia, snapshotReferencedMedia } from "./db-media-backup.mjs";
 import {
   createDatabaseBackup,
@@ -58,11 +58,11 @@ try {
     );
     const references = assets.map(row => row.image.slice("/api/media/".length));
     const mediaSnapshot = backupPath + ".media";
-    await snapshotReferencedMedia(resolve("storage/uploads"), mediaSnapshot, references, basename(backupPath));
+    await snapshotReferencedMedia(resolve("storage/uploads"), mediaSnapshot, references, backupPath);
     const temporary = await mkdtemp(join(tmpdir(),"narenj-restore-"));
     let media;
     try {
-      media = await restoreReferencedMedia(mediaSnapshot,join(temporary,"uploads"),references,basename(backupPath));
+      media = await restoreReferencedMedia(mediaSnapshot,join(temporary,"uploads"),references,backupPath);
     } finally {
       await rm(temporary,{recursive:true,force:true});
     }

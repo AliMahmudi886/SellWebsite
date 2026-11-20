@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createReadStream, constants } from "node:fs";
 import { copyFile, lstat, mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 const mediaName = /^[a-f0-9-]{36}\.webp$/;
 
@@ -24,6 +24,7 @@ async function measure(path) {
 
 export async function snapshotReferencedMedia(source, snapshot, references, databaseDump) {
   const names = [...new Set(references.map(requireMediaName))].sort();
+  const dump = { name:basename(databaseDump), ...await measure(databaseDump) };
   await mkdir(snapshot);
   const files = [];
   for (const name of names) {
@@ -33,29 +34,42 @@ export async function snapshotReferencedMedia(source, snapshot, references, data
     await copyFile(from, to, constants.COPYFILE_EXCL);
     files.push({name, ...await measure(to)});
   }
-  await writeFile(join(snapshot,"manifest.json"), JSON.stringify({version:1,databaseDump,files},null,2), {flag:"wx",mode:0o600});
+  await writeFile(join(snapshot,"manifest.json"), JSON.stringify({version:2,databaseDump:dump,files},null,2), {flag:"wx",mode:0o600});
+}
+
+export async function verifyBackupBundle(databaseDump, snapshot = databaseDump + ".media", references) {
+  if (!(await lstat(snapshot)).isDirectory()) throw new Error("Expected a media snapshot directory.");
+  const manifest = JSON.parse(await readFile(join(snapshot,"manifest.json"),"utf8"));
+  if (manifest.version !== 2 || manifest.databaseDump?.name !== basename(databaseDump) || !Array.isArray(manifest.files)) {
+    throw new Error("Invalid or mismatched backup manifest. Version 2 is required.");
+  }
+  const actualDump = await measure(databaseDump);
+  if (actualDump.bytes !== manifest.databaseDump.bytes || actualDump.sha256 !== manifest.databaseDump.sha256) {
+    throw new Error("Database dump checksum mismatch.");
+  }
+  const expected = references && new Set(references.map(requireMediaName));
+  if (expected && manifest.files.length !== expected.size) throw new Error("Media manifest does not match restored database.");
+  const seen = new Set();
+  let mediaBytes = 0;
+  for (const { name, sha256, bytes } of manifest.files) {
+    requireMediaName(name);
+    if (seen.has(name) || (expected && !expected.has(name))) throw new Error("Unexpected or duplicate upload in media manifest.");
+    seen.add(name);
+    const saved = await measure(join(snapshot,name));
+    if (saved.bytes !== bytes || saved.sha256 !== sha256) throw new Error("Media backup checksum mismatch: " + name);
+    mediaBytes += saved.bytes;
+  }
+  return { files:manifest.files, mediaBytes, dumpBytes:actualDump.bytes };
 }
 
 export async function restoreReferencedMedia(snapshot, destination, references, databaseDump) {
-  const manifest = JSON.parse(await readFile(join(snapshot,"manifest.json"),"utf8"));
-  if (manifest.version !== 1 || manifest.databaseDump !== databaseDump || !Array.isArray(manifest.files)) {
-    throw new Error("Invalid or mismatched media manifest.");
-  }
-  const expected = new Set(references.map(requireMediaName));
-  if (manifest.files.length !== expected.size) throw new Error("Media manifest does not match restored database.");
+  const { files, mediaBytes } = await verifyBackupBundle(databaseDump,snapshot,references);
   await mkdir(destination);
-  let bytes = 0;
-  for (const { name, sha256, bytes: expectedBytes } of manifest.files) {
-    requireMediaName(name);
-    if (!expected.delete(name)) throw new Error("Unexpected or duplicate upload in media manifest.");
-    const source = join(snapshot,name);
-    const saved = await measure(source);
-    if (saved.bytes !== expectedBytes || saved.sha256 !== sha256) throw new Error("Media backup checksum mismatch: " + name);
+  for (const { name, sha256, bytes } of files) {
     const target = join(destination,name);
-    await copyFile(source,target,constants.COPYFILE_EXCL);
+    await copyFile(join(snapshot,name),target,constants.COPYFILE_EXCL);
     const restored = await measure(target);
-    if (restored.bytes !== expectedBytes || restored.sha256 !== sha256) throw new Error("Restored media checksum mismatch: " + name);
-    bytes += restored.bytes;
+    if (restored.bytes !== bytes || restored.sha256 !== sha256) throw new Error("Restored media checksum mismatch: " + name);
   }
-  return { files:manifest.files.length, bytes };
+  return { files:files.length, bytes:mediaBytes };
 }
