@@ -1,6 +1,10 @@
 import pg from "pg";
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, join, resolve } from "node:path";
+import { restoreReferencedMedia, snapshotReferencedMedia } from "./db-media-backup.mjs";
 import {
   createDatabaseBackup,
   databaseConfig,
@@ -49,14 +53,29 @@ try {
     if (Object.values(integrity).some(value => Number(value) !== 0)) {
       throw new Error(`یکپارچگی دیتابیس بازیابی‌شده تأیید نشد: ${JSON.stringify(integrity)}`);
     }
+    const { rows: assets } = await restoredPool.query(
+      "SELECT DISTINCT image FROM products WHERE image LIKE '/api/media/%'",
+    );
+    const references = assets.map(row => row.image.slice("/api/media/".length));
+    const mediaSnapshot = backupPath + ".media";
+    await snapshotReferencedMedia(resolve("storage/uploads"), mediaSnapshot, references, basename(backupPath));
+    const temporary = await mkdtemp(join(tmpdir(),"narenj-restore-"));
+    let media;
+    try {
+      media = await restoreReferencedMedia(mediaSnapshot,join(temporary,"uploads"),references,basename(backupPath));
+    } finally {
+      await rm(temporary,{recursive:true,force:true});
+    }
     console.log(JSON.stringify({
       database: databaseName,
       counts,
       integrity,
+      media,
       restore_and_verify_seconds: Number(((performance.now() - restoreStartedAt) / 1000).toFixed(3)),
       drill_seconds_before_cleanup: Number(((performance.now() - startedAt) / 1000).toFixed(3)),
     }));
     console.log(`فایل پشتیبان تأییدشده برای نگهداری: ${backupPath}`);
+    console.log(`پوشهٔ پشتیبان رسانه: ${mediaSnapshot}`);
   } finally {
     await restoredPool.end();
   }
