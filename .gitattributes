@@ -1,3 +1,4 @@
 scripts/db-wal-archive.sh text eol=lf
 scripts/db-pitr-drill.sh text eol=lf
 scripts/db-wal-filesystem.sh text eol=lf
+scripts/db-wal-destination-health.sh text eol=lf

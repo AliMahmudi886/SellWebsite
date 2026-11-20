@@ -4,8 +4,9 @@ export LC_ALL=C
 root=$(mktemp -d)
 primary="$root/primary"
 restore="$root/restore"
-offsite=$(mktemp -d)
+offsite=$(mktemp -d "$WAL_DRILL_OFFSITE_ROOT/narenj-wal-drill.XXXXXXXX")
 archive="$offsite/wal"
+trap 'pg_ctl -D "$restore" -m immediate stop >/dev/null 2>&1 || true; pg_ctl -D "$primary" -m immediate stop >/dev/null 2>&1 || true; case "$offsite" in "$WAL_DRILL_OFFSITE_ROOT"/narenj-wal-drill.????????) rm -rf -- "$offsite";; esac' EXIT
 mkdir "$archive"
 probe="$root/archive-probe"
 probe_name=000000FF.history
@@ -15,6 +16,19 @@ if sh "$WAL_ARCHIVE_HELPER" "$archive" "$probe" "$probe_name"; then
   exit 1
 fi
 touch "$archive/.wal-archive-ready"
+printf 'Idle destination before disconnect: '
+sh "$WAL_DESTINATION_HELPER" "$archive"
+mv "$archive/.wal-archive-ready" "$root/idle-offline-marker"
+printf 'Idle destination while disconnected: '
+if sh "$WAL_DESTINATION_HELPER" "$archive"; then
+  echo "Idle destination monitor accepted missing marker" >&2
+  exit 1
+else
+  test "$?" -eq 1
+fi
+mv "$root/idle-offline-marker" "$archive/.wal-archive-ready"
+printf 'Idle destination after reconnect: '
+sh "$WAL_DESTINATION_HELPER" "$archive"
 sh "$WAL_ARCHIVE_HELPER" "$archive" "$probe" "$probe_name"
 sh "$WAL_ARCHIVE_HELPER" "$archive" "$probe" "$probe_name"
 printf 'changed' > "$probe"
@@ -23,7 +37,6 @@ if sh "$WAL_ARCHIVE_HELPER" "$archive" "$probe" "$probe_name"; then
   exit 1
 fi
 test "$(cat "$archive/$probe_name")" = original
-trap 'pg_ctl -D "$restore" -m immediate stop >/dev/null 2>&1 || true; pg_ctl -D "$primary" -m immediate stop >/dev/null 2>&1 || true' EXIT
 initdb -D "$primary" --auth=trust --no-locale >/dev/null
 cat >> "$primary/postgresql.conf" <<CONFIG
 listen_addresses = ''
@@ -41,7 +54,8 @@ primary_sql -qc "CREATE TABLE markers (mark text PRIMARY KEY); INSERT INTO marke
 cat > "$root/workload.sql" <<'SQL'
 INSERT INTO workload(phase,payload) VALUES (:phase,repeat(md5(random()::text),32));
 SQL
-run_load() { pgbench -n -h "$root" -p 5541 -c 4 -j 2 -t 1000 -D phase="$1" -f "$root/workload.sql" postgres; }
+run_load() { pgbench -n -h "$root" -p 5541 -c 4 -j 2 -t "${2:-$WAL_DRILL_TRANSACTIONS_PER_CLIENT}" -D phase="$1" -f "$root/workload.sql" postgres; }
+if test "$WAL_DRILL_BASE_TRANSACTIONS_PER_CLIENT" -gt 0; then run_load 0 "$WAL_DRILL_BASE_TRANSACTIONS_PER_CLIENT"; fi
 pg_basebackup -h "$root" -p 5541 -D "$offsite/base" -X stream --checkpoint=fast
 run_load 1
 primary_sql -qc "INSERT INTO markers VALUES ('before_target');"
@@ -89,7 +103,9 @@ test -s "$archive/$required_wal"
 printf '%s' "$recovered_report" | grep -F '"healthy": true' >/dev/null
 printf 'WAL health passed: unreachable archive detected and recovered\n'
 source_rows=$(primary_sql -Atc "SELECT count(*) FROM workload")
-test "$source_rows" -eq 8000
+expected_batch=$((4 * WAL_DRILL_TRANSACTIONS_PER_CLIENT))
+expected_base=$((4 * WAL_DRILL_BASE_TRANSACTIONS_PER_CLIENT))
+test "$source_rows" -eq "$((2 * expected_batch + expected_base))"
 source_stop_epoch=$(primary_sql -Atc "SELECT extract(epoch FROM clock_timestamp())")
 recovery_started=$(monotonic_seconds)
 pg_ctl -D "$primary" -m fast -w stop >/dev/null
@@ -118,10 +134,11 @@ test "$markers" = "before_target,in_base"
 # The target can precede the last archived segment from the second batch.
 grep -F 'restored log file' "$root/restore.log" >/dev/null
 restored_rows=$(restored_sql -Atc "SELECT count(*) FROM workload")
-test "$restored_rows" -eq 4000
-test "$(restored_sql -Atc "SELECT count(*) FROM workload WHERE phase<>1")" -eq 0
+test "$restored_rows" -eq "$((expected_batch + expected_base))"
+test "$(restored_sql -Atc "SELECT count(*) FROM workload WHERE phase NOT IN (0,1)")" -eq 0
 last_recovered_epoch=$(restored_sql -Atc "SELECT extract(epoch FROM max(recorded_at)) FROM workload")
 rpo_seconds=$(elapsed "$last_recovered_epoch" "$source_stop_epoch")
 rto_seconds=$(elapsed "$recovery_started" "$(monotonic_seconds)")
+printf 'Bundle size: base_kib=%s archive_kib=%s\n' "$(du -sk "$offsite/base" | cut -f1)" "$(du -sk "$archive" | cut -f1)"
 printf 'Load recovery: source_rows=%s restored_rows=%s omitted_rows=%s observed_rpo_seconds=%s observed_rto_seconds=%s outage_alert_seconds=%s\n' "$source_rows" "$restored_rows" "$((source_rows-restored_rows))" "$rpo_seconds" "$rto_seconds" "$alert_seconds"
 printf 'Offsite simulation PITR passed: target=%s markers=%s archived_wal=%s\n' "$target" "$markers" "$required_wal"
