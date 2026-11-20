@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080"><defs><linearGradient id="wash" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#edf1eb"/><stop offset="1" stop-color="#f7eee6"/></linearGradient><filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#29352f" flood-opacity=".14"/></filter></defs><rect width="100%" height="100%" fill="#fbfaf7"/>
+  <circle cx="1040" cy="70" r="185" fill="#e7ebe4"/>
+  <text x="978" y="110" text-anchor="end" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="30" font-weight="800" fill="#31594d" direction="rtl">نارنج<tspan fill="#d88158">.</tspan></text>
+  <text x="978" y="195" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#d88158" direction="rtl" unicode-bidi="plaintext">فروشگاه آنلاین خانه و زندگی</text>
+  <text x="978" y="256" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="38" font-weight="800" fill="#29352f" direction="rtl" unicode-bidi="plaintext">خانه را با</text>
+  <text x="978" y="307" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="38" font-weight="800" fill="#29352f" direction="rtl" unicode-bidi="plaintext">جزئیات کوچک</text>
+  <text x="978" y="358" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="38" font-weight="800" fill="#29352f" direction="rtl" unicode-bidi="plaintext">دوست‌داشتنی‌تر کن.</text>
+  <text x="978" y="406" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="18" font-weight="400" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">با خانه‌ی نارنج آشنا شو</text>
+  <g transform="translate(72 460) scale(0.936 0.7571428571428571)" filter="url(#shadow)">
+    <rect width="1000" height="700" rx="24" fill="#ffffff" stroke="#e9e7df" stroke-width="2"/>
+    <path d="M24 0h952a24 24 0 0 1 24 24v43H0V24A24 24 0 0 1 24 0" fill="#f2f1ed"/>
+    <circle cx="34" cy="34" r="7" fill="#d88158"/><circle cx="58" cy="34" r="7" fill="#e3bd67"/><circle cx="82" cy="34" r="7" fill="#9eaf9d"/>
+    <rect x="330" y="19" width="430" height="30" rx="15" fill="white" stroke="#e9e7df"/>
+    <text x="740" y="39" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="12" font-weight="500" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">خانه‌ی نارنج | فروشگاه آنلاین</text>
+    <rect x="0" y="67" width="1000" height="31" fill="#31594d"/>
+    <text x="950" y="87" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="10" font-weight="500" fill="#f8f5ec" direction="rtl" unicode-bidi="plaintext">با عشق انتخاب و بسته‌بندی می‌شود · جزئیات ارسال پس از ثبت سفارش هماهنگ می‌شود</text>
+    <rect x="0" y="98" width="1000" height="90" fill="#ffffff"/>
+    <text x="920" y="151" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">خانه</text><text x="815" y="151" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">دسته‌بندی‌ها</text><text x="680" y="151" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">فروشگاه</text><text x="575" y="151" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">داستان ما</text><text x="475" y="151" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="13" font-weight="400" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">تماس</text>
+    <text x="90" y="153" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="28" font-weight="800" fill="#31594d" direction="rtl">نارنج<tspan fill="#d88158">.</tspan></text>
+    <line x1="35" y1="188" x2="965" y2="188" stroke="#e9e7df"/>
+    <rect x="0" y="189" width="1000" height="511" fill="#fbfaf7"/>
+    <rect x="560" y="244" width="360" height="375" rx="16" fill="url(#wash)"/>
+    <circle cx="740" cy="416" r="104" fill="#f8f4ec"/><circle cx="740" cy="416" r="72" fill="#e1e9df"/>
+    <path d="M740 342v148M666 416h148M687 363l106 106M793 363 687 469" stroke="#31594d" stroke-opacity=".24" stroke-width="2"/>
+    <circle cx="740" cy="416" r="12" fill="#d88158"/>
+    <rect x="585" y="576" width="311" height="1" fill="#e9e7df"/>
+    <text x="888" y="600" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="12" font-weight="700" fill="#31594d" direction="rtl" unicode-bidi="plaintext">خانه‌ی نارنج</text>
+    <text x="500" y="292" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="#d88158" direction="rtl" unicode-bidi="plaintext">انتخاب‌هایی برای خانه‌ی شما</text>
+    <text x="500" y="357" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="30" font-weight="800" fill="#29352f" direction="rtl" unicode-bidi="plaintext">خانه را با چیزهای کوچک،</text>
+    <text x="500" y="400" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="30" font-weight="800" fill="#29352f" direction="rtl" unicode-bidi="plaintext">دوست‌داشتنی‌تر کن.</text>
+    <text x="500" y="453" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">از اشیای دست‌ساز تا جزئیات روزمره؛</text>
+    <text x="500" y="479" text-anchor="start" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="15" font-weight="400" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">هر انتخاب با دقت برای خانه‌ی توست.</text>
+    <rect x="350" y="511" width="150" height="48" rx="6" fill="#31594d"/>
+    <text x="425" y="541" text-anchor="middle" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="14" font-weight="700" fill="white" direction="rtl" unicode-bidi="plaintext">دیدن فروشگاه  ←</text>
+  </g>
+  <text x="540" y="1030" text-anchor="middle" font-family="Tahoma, Segoe UI, Arial, sans-serif" font-size="14" font-weight="500" fill="#7d827a" direction="rtl" unicode-bidi="plaintext">خانه‌ی نارنج  ·  جزئیات کوچک، حال خوبِ هر روز</text>
+</svg>
