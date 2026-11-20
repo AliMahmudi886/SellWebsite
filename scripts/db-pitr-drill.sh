@@ -42,12 +42,32 @@ target=$(primary_sql -Atc "SELECT clock_timestamp()")
 primary_sql -qc "INSERT INTO markers VALUES ('after_target');"
 test "$(primary_sql -Atc "SELECT string_agg(mark,',' ORDER BY mark) FROM markers")" = "after_target,before_target,in_base"
 required_wal=$(primary_sql -Atc 'SELECT pg_walfile_name(pg_current_wal_insert_lsn())')
+primary_sql -qc "CREATE ROLE wal_monitor LOGIN; GRANT pg_monitor TO wal_monitor;"
+health() { primary_sql -U wal_monitor -Atf "$WAL_HEALTH_SQL"; }
+mv "$archive/.wal-archive-ready" "$root/offline-marker"
 primary_sql -Atc 'SELECT pg_switch_wal()' >/dev/null
+failed_report=''
 for n in $(seq 1 30); do
-  test ! -s "$archive/$required_wal" || break
+  failed_report=$(health)
+  if printf '%s' "$failed_report" | grep -F 'archive_failed_with_pending_wal' >/dev/null; then break; fi
+  sleep 1
+done
+printf '%s' "$failed_report" | grep -F '"healthy": false' >/dev/null
+printf '%s' "$failed_report" | grep -F 'archive_failed_with_pending_wal' >/dev/null
+test ! -e "$archive/$required_wal"
+mv "$root/offline-marker" "$archive/.wal-archive-ready"
+# Wake the archiver rather than waiting for its periodic retry.
+pg_ctl -D "$primary" reload >/dev/null
+primary_sql -qc "INSERT INTO markers VALUES ('after_reconnect'); SELECT pg_switch_wal();" >/dev/null
+recovered_report=''
+for n in $(seq 1 30); do
+  recovered_report=$(health)
+  if test -s "$archive/$required_wal" && printf '%s' "$recovered_report" | grep -F '"healthy": true' >/dev/null; then break; fi
   sleep 1
 done
 test -s "$archive/$required_wal"
+printf '%s' "$recovered_report" | grep -F '"healthy": true' >/dev/null
+printf 'WAL health passed: unreachable archive detected and recovered\n'
 pg_ctl -D "$primary" -m fast -w stop >/dev/null
 mv "$primary" "$root/primary-offline"
 pg_verifybackup "$offsite/base" >/dev/null

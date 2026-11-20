@@ -8,6 +8,10 @@ const script = [
   "cat > \"$WAL_ARCHIVE_HELPER\" <<'NARENJ_WAL_HELPER'",
   readScript("./db-wal-archive.sh"),
   "NARENJ_WAL_HELPER",
+  "export WAL_HEALTH_SQL=$(mktemp)",
+  "cat > \"$WAL_HEALTH_SQL\" <<'NARENJ_WAL_HEALTH'",
+  readScript("./db-wal-health.sql"),
+  "NARENJ_WAL_HEALTH",
   readScript("./db-pitr-drill.sh"),
 ].join("\n");
 const result = spawnSync("docker",[
