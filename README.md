@@ -117,3 +117,32 @@ git status --short
 ### پردازش رویدادهای سفارش
 
 پس از migration 015، npm run outbox:dispatch حداکثر ۱۰۰ رویداد آماده را در یک اجرا به inbox داخلی PostgreSQL تحویل می‌دهد. OUTBOX_BATCH_SIZE تعداد را از ۱ تا ۱۰۰۰ تنظیم می‌کند. فرمان تعداد تحویل، تلاش مجدد و شکست نهایی را چاپ می‌کند و اگر رویدادی در همان اجرا به سقف ۸ خطا برسد، با کد ۱ پایان می‌یابد. failed_at و next_attempt_at وضعیت پردازش را نشان می‌دهند. فرایند دائمی و مصرف‌کنندهٔ بیرونی باید جداگانه در محیط مقصد تعریف شوند.
+
+#### عملیات صف رویداد
+
+- npm run outbox:status شمار رویدادهای آماده، منتظر، شکست‌خورده و تحویل‌شده، سن قدیمی‌ترین رویداد در انتظار و حداکثر ۲۰ شکست اخیر را به صورت JSON نشان می‌دهد.
+- npm run outbox:requeue -- EVENT_UUID فقط رویداد مشخصی را که به شکست نهایی رسیده و تحویل نشده دوباره آماده می‌کند. پس از بررسی علت شکست اجرا شود. اگر رکورد واجد شرایط نباشد، فرمان با کد ۱ پایان می‌یابد.
+- npm run outbox:watch پردازش پیوسته را در یک فرایند جدا اجرا می‌کند. OUTBOX_POLL_MS از ۲۵۰ تا ۶۰۰۰۰ میلی‌ثانیه و پیش‌فرض ۵۰۰۰ است. تنظیم سرویس، restart و دریافت لاگ به محیط استقرار تعلق دارد. برای پایش، روی وجود شکست نهایی و افزایش سن صف هشدار تعریف کنید.
+
+### استقرار پایش Outbox
+
+پردازشگر watch را به‌عنوان فرایند جدا با همان نسخهٔ برنامه و پس از migration 015 اجرا کنید. روی Linux می‌توان از نمونهٔ systemd زیر پس از تطبیق مسیر و هویت سرویس استفاده کرد. DATABASE_URL از فایل محرمانهٔ محیط مقصد تأمین شود.
+
+    [Unit]
+    Description=Khaneh Narenj order outbox
+    After=network-online.target
+    Wants=network-online.target
+
+    [Service]
+    User=narenj-worker
+    WorkingDirectory=/srv/narenj/current
+    EnvironmentFile=/etc/narenj/outbox.env
+    ExecStart=/usr/bin/node scripts/order-outbox-worker.mjs watch
+    Restart=on-failure
+    RestartSec=5
+    TimeoutStopSec=30
+
+    [Install]
+    WantedBy=multi-user.target
+
+پایش بیرونی در هر دقیقه npm run outbox:health را اجرا کند. وجود شکست نهایی یا رویدادی که حداقل ۱۲۰ ثانیه بعد از موعد پردازش همچنان آماده مانده، خروج ۱ می‌دهد. OUTBOX_MAX_READY_AGE_SECONDS حد را تغییر می‌دهد. تأخیر برنامه‌ریزی‌شدهٔ retry به تنهایی هشدار نمی‌دهد. خطای اجرای فرمان یا اتصال DB نیز شکست پایش است و باید بررسی شود. هنگام هشدار، ابتدا outbox:status و لاگ فرایند را ببینید و سپس رویداد مشخص را پس از رفع علت بازگردانید.

@@ -6,6 +6,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { createSmokeAdminSession } from "./smoke-admin-session.mjs";
+import { outboxHealth, readOutboxStatus, requeueFailedOutboxEvent } from "./order-outbox-ops.mjs";
 import { dispatchNextOrderEvent } from "./order-outbox-dispatch.mjs";
 import bcrypt from "bcryptjs";
 import pg from "pg";
@@ -49,8 +50,8 @@ async function startServer(role) {
   }
   throw new Error("Test server did not start");
 }
-async function runScript(name) {
-  const child = spawn(process.execPath, ["--experimental-strip-types", "scripts/" + name + ".mjs"], {
+async function runScript(name, ...args) {
+  const child = spawn(process.execPath, ["--experimental-strip-types", "scripts/" + name + ".mjs", ...args], {
     env: { ...env, ADMIN_ROLE: "owner" }, stdio: "inherit",
   });
   const [code] = await once(child, "exit");
@@ -200,8 +201,32 @@ try {
     await isolated.query("ALTER TABLE order_event_inbox DROP CONSTRAINT smoke_reject_delivery");
   }
 
-  // Make the delayed event due and explicitly requeue the exhausted fixture.
-  await isolated.query("UPDATE order_outbox SET next_attempt_at=now(),failed_at=NULL WHERE order_id=$1", [orderId]);
+  const status = await readOutboxStatus(isolated);
+  assert.equal(Number(status.ready), 0);
+  assert.equal(Number(status.delayed), 1);
+  assert.equal(Number(status.failed), 1);
+  assert.equal(Number(status.delivered), 0);
+  assert.ok(status.oldest_pending_seconds >= 0);
+  assert.equal(status.recent_failures.length, 1);
+  const failedId = status.recent_failures[0].id;
+  assert.deepEqual(outboxHealth(status, 120).reasons, ["terminal_failures"]);
+  await isolated.query("UPDATE order_outbox SET next_attempt_at=now()-interval '3 minutes' WHERE order_id=$1 AND id<>$2", [orderId,failedId]);
+  assert.deepEqual(outboxHealth(await readOutboxStatus(isolated),120).reasons,
+    ["terminal_failures","ready_backlog_overdue"]);
+  const healthProbe = spawn(process.execPath, ["scripts/order-outbox-worker.mjs","health"], {
+    env: { ...env, OUTBOX_MAX_READY_AGE_SECONDS: "120" }, stdio: "inherit",
+  });
+  assert.equal((await once(healthProbe, "exit"))[0], 1);
+  await isolated.query("UPDATE order_outbox SET next_attempt_at=now()+interval '1 minute' WHERE order_id=$1 AND id<>$2", [orderId,failedId]);
+  const delayedId = (await deliveryState()).find(row => row.delayed && !row.failed_at).id;
+  await assert.rejects(requeueFailedOutboxEvent(isolated, "invalid"), /UUID/);
+  assert.equal(await requeueFailedOutboxEvent(isolated, delayedId), false);
+  assert.equal(await requeueFailedOutboxEvent(isolated, failedId), true);
+  assert.equal(await requeueFailedOutboxEvent(isolated, failedId), false);
+  const requeued = (await deliveryState()).find(row => row.id === failedId);
+  assert.equal(requeued.delivery_attempts, 0);
+  assert.equal(requeued.failed_at, null);
+  await isolated.query("UPDATE order_outbox SET next_attempt_at=now() WHERE id=$1", [delayedId]);
   const workers = await Promise.all(Array.from({length:4}, () => dispatchNextOrderEvent(isolated)));
   assert.equal(workers.filter(result => result === "delivered").length, 2);
   assert.equal((await isolated.query("SELECT 1 FROM order_event_inbox")).rowCount, 2);
@@ -210,7 +235,37 @@ try {
   assert.equal(await dispatchNextOrderEvent(isolated), "delivered");
   assert.equal((await isolated.query("SELECT 1 FROM order_event_inbox")).rowCount, 2);
   assert.equal(await dispatchNextOrderEvent(isolated), "empty");
+  assert.equal(await requeueFailedOutboxEvent(isolated, failedId), false);
+  console.log("Outbox status and targeted requeue passed.");
   console.log("Outbox dispatch smoke passed: retry delay, exhaustion, concurrent dispatch and inbox deduplication.");
+  await isolated.query("UPDATE order_outbox SET published_at=NULL WHERE id=$1", [failedId]);
+  const watcher = spawn(process.execPath, ["scripts/order-outbox-worker.mjs", "watch"], {
+    env: { ...env, OUTBOX_POLL_MS: "250" },
+    stdio: ["ignore", "pipe", "inherit"],
+  });
+  watcher.stdout.resume();
+  try {
+    let processed = false;
+    for (let i = 0; i < 40; i++) {
+      if ((await deliveryState()).find(row => row.id === failedId)?.published_at) {
+        processed = true;
+        break;
+      }
+      if (watcher.exitCode !== null) throw new Error("Outbox watcher exited");
+      await delay(250);
+    }
+    assert.equal(processed, true);
+    assert.equal((await isolated.query("SELECT 1 FROM order_event_inbox")).rowCount, 2);
+    console.log("Outbox watcher subprocess passed.");
+  } finally {
+    if (watcher.exitCode === null && watcher.signalCode === null) {
+      const stopped = once(watcher, "exit");
+      watcher.kill();
+      await stopped;
+    }
+  }
+  await runScript("order-outbox-worker", "status");
+  await runScript("order-outbox-worker", "health");
   await runScript("smoke-db");
   await runScript("smoke-upload");
   await runScript("order-outbox-worker");

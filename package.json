@@ -22,7 +22,11 @@
     "stress:recommendations": "node --env-file-if-exists=.env.local scripts/stress-recommendations.mjs",
     "smoke:upload": "node --env-file-if-exists=.env.local scripts/smoke-upload.mjs",
     "smoke:admin-security": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/smoke-admin-security.mjs",
-    "outbox:dispatch": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs"
+    "outbox:dispatch": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs",
+    "outbox:watch": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs watch",
+    "outbox:status": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs status",
+    "outbox:requeue": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs requeue",
+    "outbox:health": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs health"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
