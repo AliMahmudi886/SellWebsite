@@ -27,7 +27,9 @@
     "outbox:status": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs status",
     "outbox:requeue": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs requeue",
     "outbox:health": "node --env-file-if-exists=.env.local scripts/order-outbox-worker.mjs health",
-    "db:backup:verify": "node scripts/db-backup-verify.mjs"
+    "db:backup:verify": "node scripts/db-backup-verify.mjs",
+    "db:pitr:drill": "node scripts/db-pitr-drill.mjs",
+    "db:backup:offsite": "node scripts/db-backup-offsite-cli.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
