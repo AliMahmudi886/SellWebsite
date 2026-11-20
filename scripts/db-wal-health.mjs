@@ -7,6 +7,8 @@ const threshold = Number(process.env.WAL_MAX_PENDING_SECONDS ?? 120);
 if (!Number.isSafeInteger(threshold) || threshold < 1 || threshold > 86400) {
   throw new Error("WAL_MAX_PENDING_SECONDS must be an integer from 1 to 86400.");
 }
+const maxBytes = Number(process.env.WAL_MAX_DIRECTORY_BYTES ?? 1073741824);
+if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new Error("WAL_MAX_DIRECTORY_BYTES must be a positive safe integer.");
 const client = new pg.Client({
   connectionString,
   ssl: process.env.DATABASE_SSL === "true" ? {rejectUnauthorized:true} : undefined,
@@ -16,6 +18,7 @@ const client = new pg.Client({
 try {
   await client.connect();
   await client.query("SELECT set_config('narenj.wal_max_pending_seconds',$1,false)",[String(threshold)]);
+  await client.query("SELECT set_config('narenj.wal_max_directory_bytes',$1,false)",[String(maxBytes)]);
   const sql = await readFile(new URL("./db-wal-health.sql",import.meta.url),"utf8");
   const { rows:[{report}] } = await client.query(sql);
   console.log(JSON.stringify(report));

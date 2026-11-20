@@ -35,16 +35,25 @@ archive_command = 'sh "$WAL_ARCHIVE_HELPER" "$archive" "%p" "%f"'
 CONFIG
 pg_ctl -D "$primary" -l "$root/primary.log" -w -t 30 start >/dev/null
 primary_sql() { psql -X -v ON_ERROR_STOP=1 -h "$root" -p 5541 -d postgres "$@"; }
-primary_sql -qc "CREATE TABLE markers (mark text PRIMARY KEY); INSERT INTO markers VALUES ('in_base');"
+monotonic_seconds() { awk '{ print $1 }' /proc/uptime; }
+elapsed() { awk -v start="$1" -v finish="$2" 'BEGIN { printf "%.3f", finish-start }'; }
+primary_sql -qc "CREATE TABLE markers (mark text PRIMARY KEY); INSERT INTO markers VALUES ('in_base'); CREATE TABLE workload (phase int NOT NULL, recorded_at timestamptz DEFAULT clock_timestamp(), payload text NOT NULL);"
+cat > "$root/workload.sql" <<'SQL'
+INSERT INTO workload(phase,payload) VALUES (:phase,repeat(md5(random()::text),32));
+SQL
+run_load() { pgbench -n -h "$root" -p 5541 -c 4 -j 2 -t 1000 -D phase="$1" -f "$root/workload.sql" postgres; }
 pg_basebackup -h "$root" -p 5541 -D "$offsite/base" -X stream --checkpoint=fast
+run_load 1
 primary_sql -qc "INSERT INTO markers VALUES ('before_target');"
 target=$(primary_sql -Atc "SELECT clock_timestamp()")
 primary_sql -qc "INSERT INTO markers VALUES ('after_target');"
 test "$(primary_sql -Atc "SELECT string_agg(mark,',' ORDER BY mark) FROM markers")" = "after_target,before_target,in_base"
-required_wal=$(primary_sql -Atc 'SELECT pg_walfile_name(pg_current_wal_insert_lsn())')
 primary_sql -qc "CREATE ROLE wal_monitor LOGIN; GRANT pg_monitor TO wal_monitor;"
 health() { primary_sql -U wal_monitor -Atf "$WAL_HEALTH_SQL"; }
+outage_started=$(monotonic_seconds)
 mv "$archive/.wal-archive-ready" "$root/offline-marker"
+run_load 2
+required_wal=$(primary_sql -Atc 'SELECT pg_walfile_name(pg_current_wal_insert_lsn())')
 primary_sql -Atc 'SELECT pg_switch_wal()' >/dev/null
 failed_report=''
 for n in $(seq 1 30); do
@@ -55,6 +64,17 @@ done
 printf '%s' "$failed_report" | grep -F '"healthy": false' >/dev/null
 printf '%s' "$failed_report" | grep -F 'archive_failed_with_pending_wal' >/dev/null
 test ! -e "$archive/$required_wal"
+alert_seconds=$(elapsed "$outage_started" "$(monotonic_seconds)")
+printf 'Unhealthy WAL probe: %s\n' "$failed_report"
+limit_report=$(PGOPTIONS='-c narenj.wal_max_directory_bytes=1' health)
+printf '%s' "$limit_report" | grep -F 'wal_directory_limit' >/dev/null
+sh "$WAL_FS_HELPER" "$primary/pg_wal"
+if WAL_MAX_FILESYSTEM_PERCENT=1 sh "$WAL_FS_HELPER" "$primary/pg_wal"; then
+  echo "Expected filesystem threshold failure" >&2
+  exit 1
+else
+  test "$?" -eq 1
+fi
 mv "$root/offline-marker" "$archive/.wal-archive-ready"
 # Wake the archiver rather than waiting for its periodic retry.
 pg_ctl -D "$primary" reload >/dev/null
@@ -68,6 +88,10 @@ done
 test -s "$archive/$required_wal"
 printf '%s' "$recovered_report" | grep -F '"healthy": true' >/dev/null
 printf 'WAL health passed: unreachable archive detected and recovered\n'
+source_rows=$(primary_sql -Atc "SELECT count(*) FROM workload")
+test "$source_rows" -eq 8000
+source_stop_epoch=$(primary_sql -Atc "SELECT extract(epoch FROM clock_timestamp())")
+recovery_started=$(monotonic_seconds)
 pg_ctl -D "$primary" -m fast -w stop >/dev/null
 mv "$primary" "$root/primary-offline"
 pg_verifybackup "$offsite/base" >/dev/null
@@ -91,5 +115,13 @@ done
 test "$(restored_sql -Atc 'SELECT pg_is_in_recovery()')" = f
 markers=$(restored_sql -Atc "SELECT string_agg(mark,',' ORDER BY mark) FROM markers")
 test "$markers" = "before_target,in_base"
-grep -F "restored log file \"$required_wal\" from archive" "$root/restore.log" >/dev/null
+# The target can precede the last archived segment from the second batch.
+grep -F 'restored log file' "$root/restore.log" >/dev/null
+restored_rows=$(restored_sql -Atc "SELECT count(*) FROM workload")
+test "$restored_rows" -eq 4000
+test "$(restored_sql -Atc "SELECT count(*) FROM workload WHERE phase<>1")" -eq 0
+last_recovered_epoch=$(restored_sql -Atc "SELECT extract(epoch FROM max(recorded_at)) FROM workload")
+rpo_seconds=$(elapsed "$last_recovered_epoch" "$source_stop_epoch")
+rto_seconds=$(elapsed "$recovery_started" "$(monotonic_seconds)")
+printf 'Load recovery: source_rows=%s restored_rows=%s omitted_rows=%s observed_rpo_seconds=%s observed_rto_seconds=%s outage_alert_seconds=%s\n' "$source_rows" "$restored_rows" "$((source_rows-restored_rows))" "$rpo_seconds" "$rto_seconds" "$alert_seconds"
 printf 'Offsite simulation PITR passed: target=%s markers=%s archived_wal=%s\n' "$target" "$markers" "$required_wal"
