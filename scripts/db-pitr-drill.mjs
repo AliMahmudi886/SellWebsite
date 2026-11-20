@@ -1,7 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const script = readFileSync(new URL("./db-pitr-drill.sh",import.meta.url),"utf8").replace(/\r\n/g,"\n");
+const readScript = name => readFileSync(new URL(name,import.meta.url),"utf8").replace(/\r\n/g,"\n");
+const script = [
+  "set -eu",
+  "export WAL_ARCHIVE_HELPER=$(mktemp)",
+  "cat > \"$WAL_ARCHIVE_HELPER\" <<'NARENJ_WAL_HELPER'",
+  readScript("./db-wal-archive.sh"),
+  "NARENJ_WAL_HELPER",
+  readScript("./db-pitr-drill.sh"),
+].join("\n");
 const result = spawnSync("docker",[
   "run","--rm","-i","--network","none","--pull","never","--user","postgres",
   "--entrypoint","sh","postgres:16-alpine","-s",
