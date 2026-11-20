@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {formatPrice,type Product} from "@/lib/products";
@@ -16,6 +16,35 @@ export function ProductDetail({product,recommendations}:{product:Product;recomme
  const [message,setMessage]=useState(""),[cartCount,setCartCount]=useState(0);
  const [zoomed,setZoomed]=useState(false);
  const [quantity,setQuantity]=useState(1);
+ const primaryPurchase = useRef<HTMLButtonElement>(null);
+ const [showMobilePurchase, setShowMobilePurchase] = useState(false);
+
+ useEffect(() => {
+  const button = primaryPurchase.current;
+  if (!button || product.stock < 1) return;
+
+  let frame = 0;
+  const update = () => {
+   frame = 0;
+   setShowMobilePurchase(button.getBoundingClientRect().bottom <= 0);
+  };
+  const schedule = () => {
+   if (!frame) frame = requestAnimationFrame(update);
+  };
+  const observer = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(schedule);
+
+  observer?.observe(button);
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", schedule);
+  schedule();
+  return () => {
+   observer?.disconnect();
+   window.removeEventListener("scroll", schedule);
+   window.removeEventListener("resize", schedule);
+   cancelAnimationFrame(frame);
+  };
+ }, [product.stock]);
+
  useEffect(()=>{const sync=()=>setCartCount(cartItemCount(readCartLines()));sync();window.addEventListener("storage",sync);window.addEventListener(CART_CHANGE_EVENT,sync);return()=>{window.removeEventListener("storage",sync);window.removeEventListener(CART_CHANGE_EVENT,sync);};},[]);
  function addToCart(){
   try{
@@ -30,5 +59,5 @@ export function ProductDetail({product,recommendations}:{product:Product;recomme
    <button type="button" className="icon-button" disabled={quantity<=1} aria-label="کم کردن تعداد" onClick={() => setQuantity(value => Math.max(1,value-1))}><UiIcon name="minus"/></button>
    <output aria-live="polite">{quantity.toLocaleString("fa-IR")}</output>
    <button type="button" className="icon-button" disabled={quantity>=product.stock} aria-label="زیاد کردن تعداد" onClick={() => setQuantity(value => Math.min(product.stock,value+1))}><UiIcon name="plus"/></button>
- </div>}<button className="primary-button" disabled={product.stock<1} onClick={addToCart}>{product.stock<1?"ناموجود":"افزودن به سبد خرید"}</button></div><p aria-live="polite" className="cart-feedback">{message}</p></div><p className="product-detail-description">{product.description}</p><div className="detail-policies"><Link href="/shipping"><UiIcon name="truck"/> ارسال و تحویل</Link><Link href="/returns"><UiIcon name="package"/> شرایط بازگشت</Link></div></section></div><aside className="mobile-purchase-bar" aria-label="خرید این محصول"><div><strong>{product.name}</strong><span>{formatPrice(product.price)} {storeConfig.currency}</span></div><button className="primary-button" disabled={product.stock<1} onClick={addToCart}>{product.stock<1?"ناموجود":"افزودن به سبد"}<UiIcon name="plus"/></button></aside><section className="related-products" aria-labelledby="related-heading"><div className="section-heading"><div><span className="eyebrow">شاید این‌ها هم به کارت بیایند</span><h2 id="related-heading">محصولات مرتبط</h2><p>{recommendations.some(item=>item.purchaseBased)?"ترکیبی از خریدهای تکمیل‌شده و شباهت محصول":"پیشنهاد بر اساس دسته‌بندی و بازه‌ی قیمت"}</p></div></div>{recommendations.length?<div className="product-grid">{recommendations.map(({product:item,purchaseBased})=><article key={item.id} className="product-card"><Link href={`/product/${encodeURIComponent(item.id)}`} className="related-image-link" aria-label={`جزئیات ${item.name}`}><div className="product-image" style={item.image===sprite?{backgroundImage:`url('${sprite}')`,backgroundSize:"200% 300%",backgroundPosition:positions[item.id]||"0% 0%"}:undefined}>{item.image!==sprite&&<Image src={item.image} alt={item.name} fill unoptimized sizes="(max-width: 560px) 45vw, 25vw" style={{objectFit:"cover"}}/>}</div></Link><Link href={`/product/${encodeURIComponent(item.id)}`} className="related-product-title">{item.name}</Link><div className="product-category">{item.category}</div><div className="product-price">{formatPrice(item.price)} {storeConfig.currency}</div><small className="recommendation-reason">{purchaseBased?"همراه در سفارش‌های تحویل‌شده":"هم‌دسته یا هم‌بازه‌ی قیمتی"}</small></article>)}</div>:<p className="empty-state">فعلاً محصول مرتبط دیگری موجود نیست.</p>}</section></main><SiteFooter/></div>;
+ </div>}<button ref={primaryPurchase} className="primary-button" disabled={product.stock<1} onClick={addToCart}>{product.stock<1?"ناموجود":"افزودن به سبد خرید"}</button></div><p aria-live="polite" className="cart-feedback">{message}</p></div><p className="product-detail-description">{product.description}</p><div className="detail-policies"><Link href="/shipping"><UiIcon name="truck"/> ارسال و تحویل</Link><Link href="/returns"><UiIcon name="package"/> شرایط بازگشت</Link></div></section></div>{showMobilePurchase && product.stock > 0 && <aside className="mobile-purchase-bar" aria-label="خرید این محصول"><div><strong>{product.name}</strong><span>{formatPrice(product.price)} {storeConfig.currency}</span></div><button className="primary-button" disabled={product.stock<1} onClick={addToCart}>{product.stock<1?"ناموجود":"افزودن به سبد"}<UiIcon name="plus"/></button></aside>}<section className="related-products" aria-labelledby="related-heading"><div className="section-heading"><div><span className="eyebrow">شاید این‌ها هم به کارت بیایند</span><h2 id="related-heading">محصولات مرتبط</h2><p>{recommendations.some(item=>item.purchaseBased)?"ترکیبی از خریدهای تکمیل‌شده و شباهت محصول":"پیشنهاد بر اساس دسته‌بندی و بازه‌ی قیمت"}</p></div></div>{recommendations.length?<div className="product-grid">{recommendations.map(({product:item,purchaseBased})=><article key={item.id} className="product-card"><Link href={`/product/${encodeURIComponent(item.id)}`} className="related-image-link" aria-label={`جزئیات ${item.name}`}><div className="product-image" style={item.image===sprite?{backgroundImage:`url('${sprite}')`,backgroundSize:"200% 300%",backgroundPosition:positions[item.id]||"0% 0%"}:undefined}>{item.image!==sprite&&<Image src={item.image} alt={item.name} fill unoptimized sizes="(max-width: 560px) 45vw, 25vw" style={{objectFit:"cover"}}/>}</div></Link><Link href={`/product/${encodeURIComponent(item.id)}`} className="related-product-title">{item.name}</Link><div className="product-category">{item.category}</div><div className="product-price">{formatPrice(item.price)} {storeConfig.currency}</div><small className="recommendation-reason">{purchaseBased?"همراه در سفارش‌های تحویل‌شده":"هم‌دسته یا هم‌بازه‌ی قیمتی"}</small></article>)}</div>:<p className="empty-state">فعلاً محصول مرتبط دیگری موجود نیست.</p>}</section></main><SiteFooter/></div>;
 }

@@ -42,7 +42,18 @@ try {
       await zoom.focus();
       await page.keyboard.press('Enter');
       assert.equal(await zoom.getAttribute('aria-pressed'), 'true');
-      await page.getByRole('button', { name: /افزودن به سبد/ }).filter({visible: true}).last().click();
+      const primaryPurchase = page.getByRole('button', { name: 'افزودن به سبد خرید', exact: true });
+      const stickyPurchase = page.locator('.mobile-purchase-bar');
+      await stickyPurchase.waitFor({ state: 'hidden' });
+      if (width === 390) {
+        await primaryPurchase.scrollIntoViewIfNeeded();
+        await stickyPurchase.waitFor({ state: 'hidden' });
+        await page.locator('.related-products').evaluate(element => element.scrollIntoView());
+        await stickyPurchase.waitFor({ state: 'visible' });
+        await primaryPurchase.scrollIntoViewIfNeeded();
+        await stickyPurchase.waitFor({ state: 'hidden' });
+      }
+      await primaryPurchase.click();
       await page.getByRole('link', { name: /رفتن به سبد خرید/ }).click();
       const dialog = page.getByRole('dialog');
       await dialog.waitFor();
