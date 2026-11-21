@@ -36,3 +36,7 @@ export function createDemoOrder(cart: { id: string; quantity: number }[], produc
 export function findDemoOrder(token: string) {
   return orders().find(order => order.token === token) ?? null;
 }
+
+export function getLatestDemoOrder() {
+  return orders()[0] ?? null;
+}
