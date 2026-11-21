@@ -1,0 +1,4 @@
+:HL["/SellWebsite/_next/static/css/e0ed2b8cd886a5dc.css","style"]
+:HL["/SellWebsite/assets/narenj-hero-mobile.f7e5ba36a044.avif","image",{"type":"image/avif","fetchPriority":"high","media":"(max-width: 560px)"}]
+1:[["children",{"s":"__PAGE__","h":160}]]
+0:{"b":"ayzwcDcKNwayTDDmwwptq","t":{"t":{"s":"","h":80,"c":"$Q1"}}}

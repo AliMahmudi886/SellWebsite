@@ -1,0 +1,7 @@
+User-Agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /track
+
+Sitemap: https://alimahmudi886.github.io/SellWebsite/sitemap.xml
