@@ -1,3 +1,4 @@
+import { publicDemo } from "@/lib/public-demo";
 import { SiteFooter } from "@/components/site-footer";
 import { StorefrontBuyingGuide, StorefrontHero } from "@/components/storefront-editorial";
 import { Storefront } from "@/components/storefront";
@@ -5,7 +6,7 @@ import { hasDatabase, listProducts } from "@/lib/db";
 import { products as demoProducts } from "@/lib/products";
 export const dynamic = "force-dynamic";
 export default async function HomePage() {
-  const databaseAvailable = hasDatabase();
+  const databaseAvailable = (!publicDemo && hasDatabase());
   let products = demoProducts;
   if (databaseAvailable) {
     try {

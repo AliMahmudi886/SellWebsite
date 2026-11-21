@@ -1,3 +1,4 @@
+import { publicDemo } from "@/lib/public-demo";
 import {notFound} from "next/navigation";
 import {ProductDetail} from "@/components/product-detail";
 import {hasDatabase,getPool,listProducts} from "@/lib/db";
@@ -7,19 +8,23 @@ import type {Metadata} from "next";
 
 export const dynamic="force-dynamic";
 
+export function generateStaticParams() {
+ return publicDemo ? demoProducts.filter(product => product.published !== false).map(product => ({ id: product.id })) : [];
+}
+
 export async function generateMetadata({params}:{params:Promise<{id:string}>}):Promise<Metadata>{
- const {id}=await params,products=hasDatabase()?await listProducts(true):demoProducts,product=products.find(item=>item.id===id&&item.published!==false);
+ const {id}=await params,products=(!publicDemo && hasDatabase())?await listProducts(true):demoProducts,product=products.find(item=>item.id===id&&item.published!==false);
  if(!product)return {title:"محصول پیدا نشد",robots:{index:false,follow:false}};
  return {title:product.name,description:product.description,alternates:{canonical:`/product/${encodeURIComponent(product.id)}`},openGraph:{title:product.name,description:product.description,type:"website",images:[product.image]}};
 }
 
 export default async function ProductPage({params}:{params:Promise<{id:string}>}){
  const {id}=await params;
- const products=hasDatabase()?await listProducts(true):demoProducts;
+ const products=(!publicDemo && hasDatabase())?await listProducts(true):demoProducts;
  const product=products.find(item=>item.id===id&&item.published!==false);
  if(!product)notFound();
  let signals:CoPurchaseSignal[]=[];
- if(hasDatabase()){
+ if((!publicDemo && hasDatabase())){
   const {rows}=await getPool().query(`SELECT pair.candidate_product_id AS product_id,pair.co_orders,
     COALESCE(source.order_count,0) AS source_orders,COALESCE(candidate.order_count,0) AS candidate_orders,
     GREATEST(1,(SELECT delivered_order_count FROM product_recommendation_stats WHERE id=1)) AS total_orders
