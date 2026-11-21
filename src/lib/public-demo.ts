@@ -11,7 +11,7 @@ type DemoOrder = {
   items: { name: string; quantity: number; unitPrice: number }[];
 };
 
-function orders(): DemoOrder[] {
+export function listDemoOrders(): DemoOrder[] {
   try {
     const value: unknown = JSON.parse(sessionStorage.getItem(key) ?? "[]");
     return Array.isArray(value) ? value : [];
@@ -29,14 +29,14 @@ export function createDemoOrder(cart: { id: string; quantity: number }[], produc
       return product ? [{ name:product.name, quantity:line.quantity, unitPrice:product.price }] : [];
     }),
   };
-  sessionStorage.setItem(key,JSON.stringify([order,...orders()].slice(0,20)));
+  sessionStorage.setItem(key,JSON.stringify([order,...listDemoOrders()].slice(0,20)));
   return order;
 }
 
 export function findDemoOrder(token: string) {
-  return orders().find(order => order.token === token) ?? null;
+  return listDemoOrders().find(order => order.token === token) ?? null;
 }
 
 export function getLatestDemoOrder() {
-  return orders()[0] ?? null;
+  return listDemoOrders()[0] ?? null;
 }
