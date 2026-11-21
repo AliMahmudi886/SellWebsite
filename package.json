@@ -30,7 +30,8 @@
     "db:backup:verify": "node scripts/db-backup-verify.mjs",
     "db:pitr:drill": "node scripts/db-pitr-drill.mjs",
     "db:backup:offsite": "node scripts/db-backup-offsite-cli.mjs",
-    "db:wal:health": "node --env-file-if-exists=.env.local scripts/db-wal-health.mjs"
+    "db:wal:health": "node --env-file-if-exists=.env.local scripts/db-wal-health.mjs",
+    "demo:build": "node --experimental-strip-types scripts/build-pages-demo.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
