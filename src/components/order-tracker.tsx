@@ -20,17 +20,17 @@ export function OrderTracker(){
     setToken(sample?.token ?? "");
     setError(sample ? "" : "در این تب هنوز سفارش آزمایشی ثبت نشده است.");
   }
-  return <main className="track-page shell"><section className="track-page-card"><span className="eyebrow">همیشه در جریان بمان</span><h1>پیگیری سفارش</h1><p className="track-intro">کد خصوصی پیگیری که بعد از ثبت سفارش دریافت کردی وارد کن. این کد را فقط با افرادی که به سفارش دسترسی دارند به‌اشتراک بگذار.</p><form onSubmit={submit} className="track-form"><label htmlFor="tracking-token">کد پیگیری</label><input id="tracking-token" autoComplete="off" dir="ltr" required minLength={40} maxLength={60} pattern="[A-Za-z0-9_-]{40,60}" value={token} onChange={event=>setToken(event.target.value)}/><button className="primary-button" disabled={busy} style={{justifyContent:"center"}}>{busy?"در حال بررسی…":"نمایش وضعیت سفارش"}</button></form>{publicDemo && <button type="button" className="text-link" onClick={showLatestDemoOrder}>نمایش آخرین سفارش آزمایشی این تب</button>}{publicDemo && <details onToggle={event => {
+  return <main className="track-page shell"><section className="track-page-card"><span className="eyebrow">همیشه در جریان بمان</span><h1>پیگیری سفارش</h1><p className="track-intro">کد خصوصی پیگیری که بعد از ثبت سفارش دریافت کردی وارد کن. این کد را فقط با افرادی که به سفارش دسترسی دارند به‌اشتراک بگذار.</p><form onSubmit={submit} className="track-form"><label htmlFor="tracking-token">کد پیگیری</label><input id="tracking-token" autoComplete="off" dir="ltr" required minLength={40} maxLength={60} pattern="[A-Za-z0-9_-]{40,60}" value={token} onChange={event=>setToken(event.target.value)}/><button className="primary-button" disabled={busy} style={{justifyContent:"center"}}>{busy?"در حال بررسی…":"نمایش وضعیت سفارش"}</button></form>{publicDemo && <button type="button" className="text-link shopping-link-button" onClick={showLatestDemoOrder}>نمایش آخرین سفارش آزمایشی این تب</button>}{publicDemo && <details className="track-history" onToggle={event => {
     if (event.currentTarget.open) setHistory(listDemoOrders());
   }}>
     <summary className="text-link">تاریخچهٔ سفارش‌های آزمایشی این تب</summary>
     {history?.length === 0 && <p>هنوز سفارش آزمایشی ثبت نشده است.</p>}
     {!!history?.length && <ul>
       {history.map(sample => <li key={sample.token}>
-        <button type="button" className="text-link" onClick={() => selectDemoOrder(sample)} aria-pressed={order?.id === sample.id}>
+        <button type="button" className="text-link shopping-link-button" onClick={() => selectDemoOrder(sample)} aria-pressed={order?.id === sample.id}>
           سفارش <bdi>{sample.id}</bdi> · {formatPrice(sample.items.reduce((total, item) => total + item.quantity, 0))} کالا
         </button>
       </li>)}
     </ul>}
-  </details>}{error&&<p role="alert" className="track-error">{error}</p>}{order&&<article className="track-result"><strong>سفارش {order.id}</strong><p>وضعیت: <strong>{statusText[order.status]||order.status}</strong></p><p>تاریخ ثبت: {new Date(order.created_at).toLocaleDateString("fa-IR")}</p>{order.items.map((item,index)=><div key={`${item.name}-${index}`} className="track-result-item"><span>{item.name} × {item.quantity}</span><span>{formatPrice(Number(item.unitPrice)*item.quantity)} {storeConfig.currency}</span></div>)}</article>}<Link className="text-link" href="/#products">ادامه‌ی خرید　←</Link></section></main>;
+  </details>}{error&&<p role="alert" className="track-error">{error}</p>}{order&&<article className="track-result" aria-live="polite"><strong>سفارش {order.id}</strong><p>وضعیت: <strong>{statusText[order.status]||order.status}</strong></p><p>تاریخ ثبت: {new Date(order.created_at).toLocaleDateString("fa-IR")}</p>{order.items.map((item,index)=><div key={`${item.name}-${index}`} className="track-result-item"><span>{item.name} × {item.quantity}</span><span>{formatPrice(Number(item.unitPrice)*item.quantity)} {storeConfig.currency}</span></div>)}</article>}<Link className="text-link" href="/#products">ادامه‌ی خرید　←</Link></section></main>;
 }
