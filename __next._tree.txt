@@ -1,4 +1,4 @@
-:HL["/SellWebsite/_next/static/css/f4c5a1372e43c4dc.css","style"]
+:HL["/SellWebsite/_next/static/css/24b01d10439596b4.css","style"]
 :HL["/SellWebsite/assets/narenj-hero-mobile.f7e5ba36a044.avif","image",{"type":"image/avif","fetchPriority":"high","media":"(max-width: 560px)"}]
 1:[["children",{"s":"__PAGE__","h":160}]]
-0:{"b":"plkIFFWg39pFrBGpZVbPC","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
+0:{"b":"BakyWRrmsHrhon0ifzH3C","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
